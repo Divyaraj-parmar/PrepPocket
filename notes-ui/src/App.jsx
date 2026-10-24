@@ -7,7 +7,9 @@ import NewItemModal from './components/NewItemModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
 import './App.css';
 
-const API_BASE = 'http://localhost:4001/api/v1/notes';
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api/v1/notes`
+  : 'http://localhost:4001/api/v1/notes';
 
 function App() {
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' or 'questions'
