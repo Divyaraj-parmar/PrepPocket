@@ -23,6 +23,7 @@ function App() {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   // PWA install prompt and online/offline event listeners
@@ -30,6 +31,11 @@ function App() {
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
+      // Auto-trigger the mobile install bottom pop-up if not dismissed in session
+      const dismissed = sessionStorage.getItem('pwa_prompt_dismissed');
+      if (!dismissed) {
+        setShowInstallPopup(true);
+      }
     };
 
     const handleOnline = () => setIsOffline(false);
@@ -52,7 +58,13 @@ function App() {
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
       setInstallPrompt(null);
+      setShowInstallPopup(false);
     }
+  };
+
+  const handleDismissInstallPopup = () => {
+    setShowInstallPopup(false);
+    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
   };
 
   // Auto-dismiss notifications after 4 seconds
@@ -381,6 +393,58 @@ function App() {
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
+
+      {/* Mobile Floating PWA Install Pop-up */}
+      {showInstallPopup && installPrompt && (
+        <div className="pwa-install-popup-overlay">
+          <div className="pwa-install-popup-card" role="dialog" aria-modal="true">
+            <div className="pwa-popup-header">
+              <div className="pwa-popup-info">
+                <img src="/pwa-192x192.png" alt="PrepPocket" className="pwa-popup-icon" />
+                <div className="pwa-popup-text">
+                  <h3>Install PrepPocket</h3>
+                  <p>Add to your home screen for fast, 1-tap offline revision.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="pwa-popup-close-btn"
+                onClick={handleDismissInstallPopup}
+                aria-label="Dismiss"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="pwa-popup-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleDismissInstallPopup}
+                style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+              >
+                Not Now
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleInstallClick}
+                style={{
+                  padding: '6px 16px',
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Install</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
