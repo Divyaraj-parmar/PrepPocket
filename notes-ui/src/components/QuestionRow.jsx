@@ -1,6 +1,4 @@
-import React from 'react';
-
-function QuestionRow({ _id, id, title, question, link, content, tags, createdAt, date, onEdit, onDelete }) {
+function QuestionRow({ title, question, link, content, tags, createdAt, date, onEdit, onDelete }) {
   const displayTitle = title || question;
 
   const getDisplayLinkTitle = (url) => {
@@ -14,7 +12,7 @@ function QuestionRow({ _id, id, title, question, link, content, tags, createdAt,
       if (host.includes('codeforces.com')) return 'Codeforces';
       if (host.includes('interviewbit.com')) return 'InterviewBit';
       return host.charAt(0).toUpperCase() + host.slice(1);
-    } catch (e) {
+    } catch {
       return 'Practice';
     }
   };
@@ -52,21 +50,23 @@ function QuestionRow({ _id, id, title, question, link, content, tags, createdAt,
           ) : (
             <span className="row-title">{displayTitle}</span>
           )}
-          {content && <p className="row-content-text">{content}</p>}
+          {content && <p className="row-content-text" title={content}>{content}</p>}
         </div>
 
-        <div className="row-tags">
-          {link && (
-            <span className={`row-platform-badge ${getPlatformBadgeClass(platform)}`}>
-              {platform}
-            </span>
-          )}
-          {tags && tags.map((tag, idx) => (
-            <span key={idx} className="row-tag">
-              #{tag}
-            </span>
-          ))}
-        </div>
+        {((link && platform) || (tags && tags.length > 0)) && (
+          <div className="row-tags">
+            {link && (
+              <span className={`row-platform-badge ${getPlatformBadgeClass(platform)}`}>
+                {platform}
+              </span>
+            )}
+            {tags && tags.map((tag, idx) => (
+              <span key={idx} className="row-tag">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="row-actions-right">
@@ -80,6 +80,9 @@ function QuestionRow({ _id, id, title, question, link, content, tags, createdAt,
             title={`Solve on ${platform}`}
           >
             <span>Solve</span>
+            <svg className="row-action-link-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
           </a>
         )}
         {onEdit && (

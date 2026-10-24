@@ -5,18 +5,23 @@ import NoteRow from './components/NoteRow';
 import QuestionRow from './components/QuestionRow';
 import NewItemModal from './components/NewItemModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
+import { storage } from './utils/storage';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api/v1/notes`
   : 'http://localhost:4001/api/v1/notes';
 
+// By default, frontend-only deployment operates in client-side interactive demo mode.
+// Backend calls are only enabled if explicitly toggled via VITE_USE_BACKEND=true.
+const IS_BACKEND_ENABLED = import.meta.env.VITE_USE_BACKEND === 'true';
+
 function App() {
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' or 'questions'
   const [searchQuery, setSearchQuery] = useState('');
-  const [notes, setNotes] = useState([]);
-  const [questions, setQuestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [notes, setNotes] = useState(() => (IS_BACKEND_ENABLED ? [] : storage.getNotes()));
+  const [questions, setQuestions] = useState(() => (IS_BACKEND_ENABLED ? [] : storage.getQuestions()));
+  const [isLoading, setIsLoading] = useState(IS_BACKEND_ENABLED);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -31,7 +36,7 @@ function App() {
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
-      // Auto-trigger the mobile install bottom pop-up if not dismissed in session
+      // Auto-trigger mobile install bottom pop-up if not dismissed in session
       const dismissed = sessionStorage.getItem('pwa_prompt_dismissed');
       if (!dismissed) {
         setShowInstallPopup(true);
@@ -76,32 +81,39 @@ function App() {
     return () => clearTimeout(timer);
   }, [notification]);
 
-  // Fetch initial notes and questions from backend
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/getAllNotes`);
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
-      }
-      const json = await res.json();
-      const allItems = json.data || [];
-      
-      setNotes(allItems.filter((item) => item.type === 'N'));
-      setQuestions(allItems.filter((item) => item.type === 'Q'));
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setNotification({
-        type: 'error',
-        message: 'Could not connect to the backend server. Make sure it is running on port 4001.'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // If backend is explicitly enabled, fetch initial records asynchronously
   useEffect(() => {
-    fetchData();
+    if (!IS_BACKEND_ENABLED) return;
+
+    let isMounted = true;
+    fetch(`${API_BASE}/getAllNotes`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        if (!isMounted) return;
+        const allItems = json.data || [];
+        setNotes(allItems.filter((item) => item.type === 'N'));
+        setQuestions(allItems.filter((item) => item.type === 'Q'));
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Backend unavailable, falling back to local demo storage:', err);
+        setNotes(storage.getNotes());
+        setQuestions(storage.getQuestions());
+        setNotification({
+          type: 'info',
+          message: 'Loaded in interactive demo mode using browser LocalStorage.'
+        });
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Filter notes/questions based on search query
@@ -140,57 +152,88 @@ function App() {
       type: itemType
     };
 
-    if (editingItem) {
-      // Update existing item
-      const res = await fetch(`${API_BASE}/updatenote/${editingItem._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+    if (IS_BACKEND_ENABLED) {
+      if (editingItem) {
+        // Update existing item in backend
+        const res = await fetch(`${API_BASE}/updatenote/${editingItem._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Failed to update item');
-      }
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update item');
+        }
 
-      const { data: updatedItem } = await res.json();
-
-      if (itemType === 'N') {
-        setNotes((prev) => prev.map((n) => (n._id === updatedItem._id ? updatedItem : n)));
+        const { data: updatedItem } = await res.json();
+        if (itemType === 'N') {
+          setNotes((prev) => prev.map((n) => (n._id === updatedItem._id ? updatedItem : n)));
+        } else {
+          setQuestions((prev) => prev.map((q) => (q._id === updatedItem._id ? updatedItem : q)));
+        }
       } else {
-        setQuestions((prev) => prev.map((q) => (q._id === updatedItem._id ? updatedItem : q)));
-      }
+        // Create new item in backend
+        const res = await fetch(`${API_BASE}/createNote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      setNotification({
-        type: 'success',
-        message: `${itemType === 'N' ? 'Note' : 'Question'} updated successfully!`
-      });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to create item');
+        }
+
+        const { data: createdItem } = await res.json();
+        if (itemType === 'N') {
+          setNotes((prev) => [createdItem, ...prev]);
+        } else {
+          setQuestions((prev) => [createdItem, ...prev]);
+        }
+      }
     } else {
-      // Create new item
-      const res = await fetch(`${API_BASE}/createNote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // Client-side LocalStorage execution
+      if (editingItem) {
+        const updatedItem = {
+          ...editingItem,
+          ...payload,
+          updatedAt: new Date().toISOString()
+        };
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Failed to create item');
-      }
-
-      const { data: createdItem } = await res.json();
-
-      if (itemType === 'N') {
-        setNotes((prev) => [createdItem, ...prev]);
+        if (itemType === 'N') {
+          const next = notes.map((n) => (n._id === editingItem._id ? updatedItem : n));
+          setNotes(next);
+          storage.saveNotes(next);
+        } else {
+          const next = questions.map((q) => (q._id === editingItem._id ? updatedItem : q));
+          setQuestions(next);
+          storage.saveQuestions(next);
+        }
       } else {
-        setQuestions((prev) => [createdItem, ...prev]);
-      }
+        const newItem = {
+          _id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          ...payload,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
 
-      setNotification({
-        type: 'success',
-        message: `${itemType === 'N' ? 'Note' : 'Question'} added successfully!`
-      });
+        if (itemType === 'N') {
+          const next = [newItem, ...notes];
+          setNotes(next);
+          storage.saveNotes(next);
+        } else {
+          const next = [newItem, ...questions];
+          setQuestions(next);
+          storage.saveQuestions(next);
+        }
+      }
     }
+
+    setNotification({
+      type: 'success',
+      message: `${itemType === 'N' ? 'Note' : 'Question'} ${editingItem ? 'updated' : 'added'} successfully!`
+    });
   };
 
   // Delete prompt & execution handlers
@@ -201,19 +244,26 @@ function App() {
   const handleConfirmDelete = async (item) => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/deletenote/${item._id}`, {
-        method: 'DELETE'
-      });
+      if (IS_BACKEND_ENABLED) {
+        const res = await fetch(`${API_BASE}/deletenote/${item._id}`, {
+          method: 'DELETE'
+        });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Failed to delete');
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to delete');
+        }
       }
 
+      // Update state and localStorage
       if (item.type === 'N') {
-        setNotes((prev) => prev.filter((n) => n._id !== item._id));
+        const next = notes.filter((n) => n._id !== item._id);
+        setNotes(next);
+        if (!IS_BACKEND_ENABLED) storage.saveNotes(next);
       } else {
-        setQuestions((prev) => prev.filter((q) => q._id !== item._id));
+        const next = questions.filter((q) => q._id !== item._id);
+        setQuestions(next);
+        if (!IS_BACKEND_ENABLED) storage.saveQuestions(next);
       }
 
       setNotification({
@@ -230,6 +280,17 @@ function App() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Reset demo data to default sample items
+  const handleResetDemoData = () => {
+    const { notes: freshNotes, questions: freshQuestions } = storage.resetToDefault();
+    setNotes(freshNotes);
+    setQuestions(freshQuestions);
+    setNotification({
+      type: 'success',
+      message: 'Restored sample DSA notes and questions to default demo data.'
+    });
   };
 
   const handleOpenAdd = () => {
@@ -255,6 +316,14 @@ function App() {
         <div className="brand-section">
           <img src="/favicon-32x32.png" alt="PrepPocket" className="brand-logo-img" />
           <span className="brand-title">PrepPocket</span>
+          {!IS_BACKEND_ENABLED && (
+            <span
+              className="demo-badge"
+              title="Interactive client-side demo mode. Your edits and additions are saved locally to your browser."
+            >
+              Interactive Demo
+            </span>
+          )}
         </div>
 
         {/* Top Middle Segmented Control */}
@@ -276,6 +345,7 @@ function App() {
             type="button"
             onClick={() => setNotification(null)}
             style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1rem', color: 'inherit' }}
+            aria-label="Dismiss notification"
           >
             &times;
           </button>
@@ -294,11 +364,23 @@ function App() {
       <div className="content-actions-bar">
         <div className="section-info">
           <h2>My {activeTab === 'notes' ? 'Notes' : 'Questions'}</h2>
-          <p>
-            {isLoading
-              ? 'Loading items...'
-              : `Reviewing ${resultsCount} ${activeTab === 'notes' ? 'notes' : 'questions'}`}
-          </p>
+          <div className="section-meta-row">
+            <p>
+              {isLoading
+                ? 'Loading items...'
+                : `Reviewing ${resultsCount} ${activeTab === 'notes' ? 'notes' : 'questions'}`}
+            </p>
+            {!IS_BACKEND_ENABLED && (
+              <button
+                type="button"
+                className="btn-reset-demo"
+                onClick={handleResetDemoData}
+                title="Reset sample notes and questions back to original demo state"
+              >
+                Reset Sample Data
+              </button>
+            )}
+          </div>
         </div>
         <button
           type="button"
@@ -316,7 +398,7 @@ function App() {
       {isLoading ? (
         <div className="loading-container">
           <div className="spinner" />
-          <p>Connecting to database...</p>
+          <p>Loading items...</p>
         </div>
       ) : resultsCount > 0 ? (
         <div className="rows-list">
@@ -354,6 +436,16 @@ function App() {
               ? `No matching results found for "${searchQuery}".`
               : `Your ${activeTab} list is currently empty. Use the button above to add a new link!`}
           </p>
+          {!IS_BACKEND_ENABLED && (
+            <button
+              type="button"
+              className="btn-reset-demo"
+              onClick={handleResetDemoData}
+              style={{ marginTop: '0.75rem', padding: '4px 12px', fontSize: '0.8rem' }}
+            >
+              Restore Sample Items
+            </button>
+          )}
         </div>
       )}
 

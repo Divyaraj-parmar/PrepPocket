@@ -1,5 +1,4 @@
-
-function NoteRow({ _id, id, title, link, content, tags, createdAt, date, onEdit, onDelete }) {
+function NoteRow({ title, link, content, tags, createdAt, date, onEdit, onDelete }) {
   const getDisplayLinkTitle = (url) => {
     if (!url) return '';
     try {
@@ -14,7 +13,7 @@ function NoteRow({ _id, id, title, link, content, tags, createdAt, date, onEdit,
       if (host.includes('dev.to')) return 'Dev.to';
       if (host.includes('stackoverflow.com')) return 'StackOverflow';
       return host.charAt(0).toUpperCase() + host.slice(1);
-    } catch (error) {
+    } catch {
       return 'Link';
     }
   };
@@ -42,16 +41,18 @@ function NoteRow({ _id, id, title, link, content, tags, createdAt, date, onEdit,
           ) : (
             <span className="row-title">{title}</span>
           )}
-          {content && <p className="row-content-text">{content}</p>}
+          {content && <p className="row-content-text" title={content}>{content}</p>}
         </div>
         
-        <div className="row-tags">
-          {tags && tags.map((tag, idx) => (
-            <span key={idx} className="row-tag">
-              #{tag}
-            </span>
-          ))}
-        </div>
+        {tags && tags.length > 0 && (
+          <div className="row-tags">
+            {tags.map((tag, idx) => (
+              <span key={idx} className="row-tag">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="row-actions-right">
@@ -65,6 +66,9 @@ function NoteRow({ _id, id, title, link, content, tags, createdAt, date, onEdit,
             title={`Go to ${getDisplayLinkTitle(link)}`}
           >
             <span>{getDisplayLinkTitle(link)}</span>
+            <svg className="row-action-link-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
           </a>
         )}
         {onEdit && (
