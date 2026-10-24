@@ -22,6 +22,38 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // PWA install prompt and online/offline event listeners
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   // Auto-dismiss notifications after 4 seconds
   useEffect(() => {
@@ -209,22 +241,36 @@ function App() {
       {/* Top Header Section */}
       <header className="app-header">
         <div className="brand-section">
-          <div className="brand-logo">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-          </div>
+          <img src="/favicon-32x32.png" alt="PrepPocket" className="brand-logo-img" />
           <span className="brand-title">PrepPocket</span>
         </div>
 
-        {/* Top Middle Segmented Control */}
-        <TabToggle activeTab={activeTab} setActiveTab={setActiveTab} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {installPrompt && (
+            <button
+              type="button"
+              className="btn-install-pwa"
+              onClick={handleInstallClick}
+              title="Install PrepPocket as Native App"
+            >
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="15" height="15">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Install App</span>
+            </button>
+          )}
+
+          {/* Top Middle Segmented Control */}
+          <TabToggle activeTab={activeTab} setActiveTab={setActiveTab} />
+        </div>
       </header>
+
+      {/* Offline Status Banner */}
+      {isOffline && (
+        <div className="status-banner offline">
+          <span>⚡ You are currently offline — viewing cached PrepPocket notes.</span>
+        </div>
+      )}
 
       {/* Status Banner */}
       {notification && (

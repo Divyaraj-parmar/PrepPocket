@@ -89,6 +89,14 @@ body {
   justify-content: center;
 }
 
+.brand-logo-img {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .brand-logo svg {
   color: #ffffff;
   width: 1.1rem;
@@ -517,6 +525,33 @@ body {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #166534;
+}
+
+.status-banner.offline {
+  background: #fefce8;
+  border: 1px solid #fef08a;
+  color: #854d0e;
+}
+
+.btn-install-pwa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.btn-install-pwa:hover {
+  background: var(--accent-bg-subtle);
+  border-color: var(--border-hover);
 }
 
 .loading-container {
