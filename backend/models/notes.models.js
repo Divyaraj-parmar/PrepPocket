@@ -8,8 +8,9 @@ const notesSchema = new mongoose.Schema({
     },
     link: {
         type: String,
-        required: true,
-        trim: true
+        required: false,
+        trim: true,
+        default: ""
     },
     content: {
         type: String,
