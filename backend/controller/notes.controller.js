@@ -4,15 +4,15 @@ export const createNote = async (req, res) => {
     try {
         const { title, link, type, tags, content } = req.body;
         
-        if (!title || !link) {
+        if (!title || (type === "Q" && !link)) {
             return res.status(400).json({
-                message: "Title and Link are required!"
+                message: type === "Q" ? "Title and Link are required!" : "Title is required!"
             });
         }
 
         const note = new Note({
             title: title.trim(),
-            link: link.trim(),
+            link: typeof link === "string" ? link.trim() : "",
             tags: Array.isArray(tags) ? tags : [],
             type: type === "Q" ? "Q" : "N",
             content: content ? content.trim() : ""
