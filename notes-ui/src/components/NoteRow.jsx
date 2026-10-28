@@ -1,4 +1,4 @@
-function NoteRow({ title, link, content, tags, createdAt, date, onView, onEdit, onDelete }) {
+function NoteRow({ title, link, content, tags, createdAt, date, onEdit, onDelete }) {
   const getDisplayLinkTitle = (url) => {
     if (!url) return '';
     try {
@@ -71,14 +71,7 @@ function NoteRow({ title, link, content, tags, createdAt, date, onView, onEdit, 
             </svg>
           </a>
         )}
-        {onView && (
-          <button type="button" className="row-view-btn" onClick={onView} title="View Note" aria-label={`View ${title}`}>
-            <svg className="view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.25 12s3.5-7 9.75-7 9.75 7 9.75 7-3.5 7-9.75 7-9.75-7-9.75-7z" />
-              <circle cx="12" cy="12" r="3" strokeWidth="2" />
-            </svg>
-          </button>
-        )}        {onEdit && (
+        {onEdit && (
           <button
             type="button"
             className="row-edit-btn"

@@ -4,7 +4,6 @@ import SearchBar from './components/SearchBar';
 import NoteRow from './components/NoteRow';
 import QuestionRow from './components/QuestionRow';
 import NewItemModal from './components/NewItemModal';
-import NotesWorkspace from './components/NotesWorkspace';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
 import { storage } from './utils/storage';
 import './App.css';
@@ -24,8 +23,6 @@ function App() {
   const [questions, setQuestions] = useState(() => (IS_BACKEND_ENABLED ? [] : storage.getQuestions()));
   const [isLoading, setIsLoading] = useState(IS_BACKEND_ENABLED);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isNotesPageOpen, setIsNotesPageOpen] = useState(false);
-  const [isNotesPageReadOnly, setIsNotesPageReadOnly] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [notification, setNotification] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -155,8 +152,6 @@ function App() {
       type: itemType
     };
 
-    let savedItem;
-
     if (IS_BACKEND_ENABLED) {
       if (editingItem) {
         // Update existing item in backend
@@ -172,7 +167,6 @@ function App() {
         }
 
         const { data: updatedItem } = await res.json();
-        savedItem = updatedItem;
         if (itemType === 'N') {
           setNotes((prev) => prev.map((n) => (n._id === updatedItem._id ? updatedItem : n)));
         } else {
@@ -192,7 +186,6 @@ function App() {
         }
 
         const { data: createdItem } = await res.json();
-        savedItem = createdItem;
         if (itemType === 'N') {
           setNotes((prev) => [createdItem, ...prev]);
         } else {
@@ -207,7 +200,6 @@ function App() {
           ...payload,
           updatedAt: new Date().toISOString()
         };
-        savedItem = updatedItem;
 
         if (itemType === 'N') {
           const next = notes.map((n) => (n._id === editingItem._id ? updatedItem : n));
@@ -225,7 +217,6 @@ function App() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        savedItem = newItem;
 
         if (itemType === 'N') {
           const next = [newItem, ...notes];
@@ -243,7 +234,6 @@ function App() {
       type: 'success',
       message: `${itemType === 'N' ? 'Note' : 'Question'} ${editingItem ? 'updated' : 'added'} successfully!`
     });
-    return savedItem;
   };
 
   // Delete prompt & execution handlers
@@ -305,11 +295,6 @@ function App() {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setIsNotesPageReadOnly(false);
-    if (activeTab === 'notes') {
-      setIsNotesPageOpen(true);
-      return;
-    }
     setIsModalOpen(true);
   };
 
@@ -318,45 +303,11 @@ function App() {
     setIsModalOpen(true);
   };
 
-  const handleOpenNoteEdit = (item) => {
-    setIsNotesPageReadOnly(false);
-    setActiveTab('notes');
-    setEditingItem(item);
-    setIsNotesPageOpen(true);
-  };
-
-  const handleOpenNoteView = (item) => {
-    setActiveTab('notes');
-    setEditingItem(item);
-    setIsNotesPageReadOnly(true);
-    setIsNotesPageOpen(true);
-  };
-
   const resultsCount = activeTab === 'notes' ? filteredNotes.length : filteredQuestions.length;
   const searchPlaceholder =
     activeTab === 'notes'
       ? 'Search notes by title, tag, or domain...'
       : 'Search solved questions by name, tag, or platform...';
-
-  if (isNotesPageOpen) {
-    return (
-      <NotesWorkspace
-        key={`${editingItem?._id || 'new-note'}-${isNotesPageReadOnly ? 'view' : 'edit'}`}
-        notes={notes}
-        itemToEdit={editingItem}
-        readOnly={isNotesPageReadOnly}
-        onOpenNote={setEditingItem}
-        onNewNote={() => { setIsNotesPageReadOnly(false); setEditingItem(null); }}
-        onEdit={() => setIsNotesPageReadOnly(false)}
-        onClose={() => { setIsNotesPageOpen(false); setIsNotesPageReadOnly(false); setEditingItem(null); }}
-        onSave={async (formData) => {
-          const saved = await handleSaveItem(formData);
-          if (saved) setEditingItem(saved);
-          return saved;
-        }}
-      />
-    );
-  }
 
   return (
     <div className="app-container">
@@ -454,16 +405,15 @@ function App() {
           {activeTab === 'notes'
             ? filteredNotes.map((note) => (
                 <NoteRow
-        key={`${editingItem?._id || 'new-note'}-${isNotesPageReadOnly ? 'view' : 'edit'}`}
+                  key={note._id}
                   {...note}
-                  onView={() => handleOpenNoteView(note)}
-                  onEdit={() => handleOpenNoteEdit(note)}
+                  onEdit={() => handleOpenEdit(note)}
                   onDelete={() => handlePromptDelete(note, 'N')}
                 />
               ))
             : filteredQuestions.map((q) => (
                 <QuestionRow
-        key={`${editingItem?._id || 'new-note'}-${isNotesPageReadOnly ? 'view' : 'edit'}`}
+                  key={q._id}
                   {...q}
                   onEdit={() => handleOpenEdit(q)}
                   onDelete={() => handlePromptDelete(q, 'Q')}
