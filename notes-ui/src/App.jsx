@@ -17,7 +17,7 @@ const API_BASE = import.meta.env.VITE_API_URL
 const IS_BACKEND_ENABLED = import.meta.env.VITE_USE_BACKEND === 'true';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('notes'); // 'notes' or 'questions'
+  const [activeTab, setActiveTab] = useState(() => storage.getLastTab()); // 'notes' or 'questions'
   const [searchQuery, setSearchQuery] = useState('');
   const [notes, setNotes] = useState(() => (IS_BACKEND_ENABLED ? [] : storage.getNotes()));
   const [questions, setQuestions] = useState(() => (IS_BACKEND_ENABLED ? [] : storage.getQuestions()));
@@ -30,6 +30,11 @@ function App() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallPopup, setShowInstallPopup] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Persist the active tab so the user lands on the same section on next visit
+  useEffect(() => {
+    storage.saveLastTab(activeTab);
+  }, [activeTab]);
 
   // PWA install prompt and online/offline event listeners
   useEffect(() => {
@@ -479,7 +484,7 @@ function App() {
                 <img src="/pwa-192x192.png" alt="PrepPocket" className="pwa-popup-icon" />
                 <div className="pwa-popup-text">
                   <h3>Install PrepPocket</h3>
-                  <p>Add to your home screen for fast, 1-tap offline revision.</p>
+                  <p>Add to your home screen for fast, 1-tap access to your notes & questions.</p>
                 </div>
               </div>
               <button
