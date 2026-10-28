@@ -3,7 +3,8 @@ import { initialNotes, initialQuestions } from '../data/initialData';
 const STORAGE_KEYS = {
   NOTES: 'preppocket_notes',
   QUESTIONS: 'preppocket_questions',
-  VERSION: 'preppocket_storage_version'
+  VERSION: 'preppocket_storage_version',
+  LAST_TAB: 'preppocket_last_tab'
 };
 
 const CURRENT_VERSION = 'v1.0';
@@ -65,5 +66,23 @@ export const storage = {
       notes: initialNotes,
       questions: initialQuestions
     };
+  },
+
+  getLastTab: () => {
+    try {
+      const tab = localStorage.getItem(STORAGE_KEYS.LAST_TAB);
+      if (tab === 'notes' || tab === 'questions') return tab;
+    } catch (e) {
+      console.warn('Error reading last tab from localStorage:', e);
+    }
+    return 'notes'; // default
+  },
+
+  saveLastTab: (tab) => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAST_TAB, tab);
+    } catch (e) {
+      console.warn('Error saving last tab to localStorage:', e);
+    }
   }
 };
